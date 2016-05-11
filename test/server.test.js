@@ -1005,8 +1005,6 @@ test('next.ifError', function (t) {
 
     SERVER.get('/foo/:id', function tester(req, res, next) {
         process.nextTick(function () {
-            // this object fails to become JSON because it's picking up the
-            // arguments of the call stack which includes itself
             var e = new RestError({
                 statusCode: 400,
                 restCode: 'Foo',
@@ -1021,7 +1019,6 @@ test('next.ifError', function (t) {
 
     CLIENT.get('/foo/bar', function (err) {
         t.ok(err);
-        t.equal(err.statusCode, 400);
         t.equal(err.body.message, 'screw you client');
         t.end();
     });
@@ -2121,4 +2118,24 @@ test('GH-1024 disable uncaughtException handler', function (t) {
     });
 
     serverProc.send({task: 'serverPortRequest'});
+});
+
+
+test('GH-1084 missing toString() causes formatter to error', function (t) {
+
+    SERVER.get('/foo', function (req, res, next) {
+        res.header('content-type', 'text/plain');
+        var obj = {
+            message: 'foo',
+            toString: null
+        };
+        res.send(200, obj);
+        return next();
+    });
+
+    CLIENT.get('/foo', function (err, req, res, body) {
+        t.ok(err);
+        t.equal(err.message, '');
+        t.end();
+    });
 });
